@@ -1,7 +1,6 @@
 import ctypes
 import tkinter as tk
 import tkinter.scrolledtext as tkst
-from queue import Empty, Queue
 from tkinter import ttk
 from typing import List, Union
 
@@ -11,7 +10,8 @@ import ctypes_linear_algebra
 
 # matrix_data = np.zeros(shape=(num_rows.value, num_cols.value)).ctypes.data_as(ctypes.POINTER(ctypes.c_int16))
 
-
+# TODO: This class is actually rather annoying as a user to deal with. Constantly updating numbers and having unexpected behavior is not worth it.
+# TODO: Shift the validation step to be when the "solve matrix" button is pressed instead.
 class NumberOnlyEntry(tk.Entry):
     def __init__(self, master=None, **kwargs):
         self.var = tk.StringVar()
@@ -30,7 +30,7 @@ class NumberOnlyEntry(tk.Entry):
         except ValueError:
             self.set(self.old_value)
 
-
+# TODO: Add the ability to change the number of rows and columns
 class MatrixInput:
     def __init__(
         self,
@@ -52,16 +52,19 @@ class MatrixInput:
                 matrix_value_entry.grid(row=row, column=col)
                 self.entries.append(matrix_value_entry)
         self.update()
-    
+
     def update(self) -> None:
         matrix_values = np.array(
             [
-                entry.old_value if entry.old_value != "" and entry.old_value != "-" else np.nan
+                entry.old_value
+                if entry.old_value != "" and entry.old_value != "-"
+                else np.nan
                 for entry in self.entries
             ]
         ).reshape(self.num_rows, self.num_cols)
         self.matrix_data = matrix_values.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
         self.parent.after(100, self.update)
+
 
 class DropTextLogWidget:
     """
@@ -145,16 +148,19 @@ class DropTextLogWidget:
         None.
         """
 
-        # print(ctypes_linear_algebra.get_dict(self.text_log))
+        print(ctypes_linear_algebra.get_dict(self.text_log))
         buffer: bytes = getattr(self.text_log, "buffer")
-        record, self.buffer_index = ctypes_linear_algebra.string_read_line(
+        # TODO: Add something that clears the buffer once there is no more stuff left to read.
+        record, new_index = ctypes_linear_algebra.string_read_line(
             buffer, self.buffer_index
         )
-        # The octothorpe is used to denote data from the DataCompiler
+        ### Increment the buffer index to where it needs to start on the next pass ###
+        self.buffer_index += new_index
+        ### Display the record ###
         self.display(record)
-        self.master.after(1000, self.update)
+        self.master.after(100, self.update)
 
-
+# TODO: Add another (read and copy only?) MatrixInput that just shows the completed row reduction (assuming one exists).
 ### CONSTRUCT THE GUI ###
 main_window = tk.Tk()
 main_window.wm_title("Linear Algebra Calculator GUI")
@@ -163,7 +169,17 @@ matrix_input._frame.grid(row=0, column=0)
 matrix_output = DropTextLogWidget(main_window)
 matrix_output._frame.grid(row=1, column=0)
 matrix_metadata = ctypes_linear_algebra.MatrixMetadata()
-perform_reduction_button = ttk.Button(main_window, command=lambda: ctypes_linear_algebra.perform_gauss_jordan_reduction(matrix_input.matrix_data, matrix_input.num_rows, matrix_input.num_cols, ctypes.byref(matrix_output.text_log), ctypes.byref(matrix_metadata)))
+perform_reduction_button = ttk.Button(
+    main_window,
+    text="Solve Matrix",
+    command=lambda: ctypes_linear_algebra.perform_gauss_jordan_reduction(
+        matrix_input.matrix_data,
+        matrix_input.num_rows,
+        matrix_input.num_cols,
+        ctypes.byref(matrix_output.text_log),
+        ctypes.byref(matrix_metadata),
+    ),
+)
 perform_reduction_button.grid(row=3, column=0)
 s = ttk.Style(main_window)
 s.theme_use("default")

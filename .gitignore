@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+
+# User-Defined
+*.bat
+row_reduction.txt
+COMPILE_WINDOWS_DLL.bat

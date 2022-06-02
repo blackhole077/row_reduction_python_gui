@@ -77,14 +77,16 @@ def get_dict(struct: ctypes.Structure) -> dict:
 
 def string_read_line(buffer: bytes, start_index: int = 0):
     byte_array_to_display: bytearray = bytearray()
-    for index, byte in enumerate(buffer):
+    for index, byte in enumerate(buffer[start_index:]):
         if byte is not None:
             if byte != ord("\r") and byte != ord("\n"):
                 byte_array_to_display.append(byte)
             # If a newline is reached then a complete chunk of data is ready to process
             if byte == ord("\n"):
-                return byte_array_to_display, index
+                print(f"Record to return (hit newline): {byte_array_to_display}")
+                return byte_array_to_display, index+1
         else:
+            print(f"Record to return (none byte): {byte_array_to_display}")
             return byte_array_to_display, index
     # If somehow the buffer is either empty or reaching the end of it doesn't trigger the other return statements
     return bytearray("", "utf-8"), 0
@@ -137,61 +139,3 @@ perform_gauss_jordan_reduction.argtypes = (
     ctypes.POINTER(MatrixMetadata),  # metadata,
 )
 perform_gauss_jordan_reduction.restype = None
-
-# get_bil_and_hdr_file_names = linear_algebra_dll.python_find_bil_and_hdr_files
-# get_bil_and_hdr_file_names.argtypes = [
-#     ctypes.c_int,  # size_coords
-#     ctypes.POINTER(ctypes.c_int),  # num_files_found
-#     ctypes.POINTER(GPSCoordinate),  # coords
-#     ctypes.POINTER(String),  # hdr_file_names
-#     ctypes.POINTER(String),  # bil_file_names
-# ]
-# get_bil_and_hdr_file_names.restype = None
-
-# func_generate_bounding_box = linear_algebra_dll.python_generate_bounding_box
-# func_generate_bounding_box.argtypes = [
-#     ctypes.POINTER(GPSCoordinate),  # ctypes_coordinates
-#     ctypes.c_double,  # padding_in_meters
-# ]
-# func_generate_bounding_box.restype = None
-
-# print_chunk_info = linear_algebra_dll.print_chunk_information
-# print_chunk_info.argtypes = [ctypes.POINTER(BILChunk)]
-# print_chunk_info.restype = None
-# # double *latitudes, double *longitudes, double *estimated_elevations, int size_elevations, struct BIL_CHUNK *chunk
-# func_find_elevation = linear_algebra_dll.python_find_elevation
-# func_find_elevation.argtypes = (
-#     ctypes.POINTER(ctypes.c_double),
-#     ctypes.POINTER(ctypes.c_double),
-#     ctypes.POINTER(ctypes.c_double),
-#     ctypes.c_int,
-#     ctypes.POINTER(BILChunk),
-# )
-# func_find_elevation.restype = None
-# func_calculate_chunk_memory = linear_algebra_dll.python_calculate_chunk_elevation_memory
-# func_calculate_chunk_memory.argtypes = (
-#     ctypes.POINTER(GPSCoordinate),
-#     ctypes.POINTER(ctypes.c_int),
-#     ctypes.POINTER(ctypes.c_int),
-#     ctypes.POINTER(ctypes.c_int),
-#     ctypes.POINTER(ctypes.c_int),
-# )
-# func_calculate_chunk_memory.restype = None
-
-# func_get_camera_boundaries = linear_algebra_dll.python_find_camera_boundaries
-# func_get_camera_boundaries.argtypes = [
-#     ctypes.POINTER(BILChunkMetadata),
-#     ctypes.POINTER(BILChunk),
-#     ctypes.POINTER(ctypes.c_double),  # double *latitudes
-#     ctypes.POINTER(ctypes.c_double),  # double *longitudes
-#     ctypes.POINTER(ctypes.c_double),  # double *altitudes
-#     ctypes.POINTER(ctypes.c_double),  # double *gimbal_pitch
-#     ctypes.POINTER(ctypes.c_double),  # double *gimbal_yaw
-#     ctypes.POINTER(ctypes.c_double),  # double *gimbal_roll
-#     ctypes.POINTER(ctypes.c_double),  # double *cam_bounds_over_time
-#     ctypes.c_double,
-#     ctypes.c_double,
-#     ctypes.c_int,
-# ]
-# func_get_camera_boundaries.restype = None
-
