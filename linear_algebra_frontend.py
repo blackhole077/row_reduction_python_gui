@@ -66,10 +66,9 @@ class MatrixInput:
         self.parent.after(100, self.update)
 
 
-class DropTextLogWidget:
+class TextLogWidget:
     """
-    This class handles displaying the compiled data that
-    normally comes from the DataCompiler.
+    This class handles displaying any text that comes through its queue-like structure.
 
     Attributes
     ----------
@@ -166,7 +165,7 @@ main_window = tk.Tk()
 main_window.wm_title("Linear Algebra Calculator GUI")
 matrix_input = MatrixInput(main_window, "Input Matrix (Augmented)", 3, 4)
 matrix_input._frame.grid(row=0, column=0)
-matrix_output = DropTextLogWidget(main_window)
+matrix_output = TextLogWidget(main_window)
 matrix_output._frame.grid(row=1, column=0)
 matrix_metadata = ctypes_linear_algebra.MatrixMetadata()
 perform_reduction_button = ttk.Button(
