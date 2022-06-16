@@ -133,3 +133,4 @@ dmypy.json
 *.bat
 row_reduction.txt
 COMPILE_WINDOWS_DLL.bat
+*.map

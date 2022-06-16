@@ -46,6 +46,14 @@ class MatrixInput:
         self._frame = ttk.LabelFrame(master=self.parent, text=label, relief="raised")
         self.matrix_data = None
         self.entries: List[NumberOnlyEntry] = []
+        self.metadata: ctypes_linear_algebra.MatrixMetadata = ctypes_linear_algebra.MatrixMetadata(
+            num_rows=self.num_rows,
+            num_cols=self.num_cols,
+            augmented_matrix_rank=-1,
+            matrix_rank=-1,
+            is_consistent=-1,
+            matrix_determinant=-1,
+        )
         # self._frame.pack(fill=tk.X, expand=True)
         for row in range(self.num_rows):
             for col in range(self.num_cols):
@@ -63,7 +71,6 @@ class MatrixInput:
                 matrix_value_entry = NumberOnlyEntry(master=self._frame)
                 matrix_value_entry.grid(row=row, column=col)
                 self.entries.append(matrix_value_entry)
-        self.has_changed = True
 
     def add_row(self):
         self.num_rows += 1
@@ -84,6 +91,8 @@ class MatrixInput:
             self.update_display()
 
     def update(self) -> None:
+        self.metadata.num_rows = self.num_rows
+        self.metadata.num_cols = self.num_cols
         matrix_values = np.array(
             [
                 entry.old_value
@@ -92,9 +101,7 @@ class MatrixInput:
                 for entry in self.entries
             ]
         ).reshape(self.num_rows, self.num_cols)
-        self.matrix_data = matrix_values.ctypes.data_as(
-            ctypes.POINTER(ctypes.c_double)
-        )
+        self.matrix_data = matrix_values.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
         self.parent.after(100, self.update)
 
 
@@ -205,7 +212,6 @@ matrix_output = TextLogWidget(main_window)
 matrix_output._frame.grid(row=1, column=0)
 button_panel = ttk.Labelframe(main_window, text="Matrix Buttons")
 button_panel.grid(row=4, column=0)
-matrix_metadata = ctypes_linear_algebra.MatrixMetadata()
 add_row_button = ttk.Button(
     button_panel, text="Add Row", command=lambda: matrix_input.add_row(),
 )
@@ -223,11 +229,10 @@ perform_reduction_button = ttk.Button(
     text="Solve Matrix",
     command=lambda: ctypes_linear_algebra.perform_gauss_jordan_reduction(
         matrix_input.matrix_data,
-        matrix_input.num_rows,
-        matrix_input.num_cols,
-        1,
+        matrix_augment.matrix_data,
         ctypes.byref(matrix_output.text_log),
-        ctypes.byref(matrix_metadata),
+        ctypes.byref(matrix_input.metadata),
+        ctypes.byref(matrix_augment.metadata),
     ),
 )
 perform_reduction_button.grid(row=3, column=0)

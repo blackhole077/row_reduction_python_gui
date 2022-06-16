@@ -137,10 +137,9 @@ perform_gauss_jordan_reduction = (
 )
 perform_gauss_jordan_reduction.argtypes = (
     ctypes.POINTER(ctypes.c_double),  # matrix_to_reduce
-    ctypes.c_int,  # num_rows
-    ctypes.c_int,  # num_cols,
-    ctypes.c_int,  # num_augmented_cols
-    ctypes.POINTER(String),  # message_buffer
-    ctypes.POINTER(MatrixMetadata),  # metadata,
+    ctypes.POINTER(ctypes.c_double),  # matrix_augment
+    ctypes.POINTER(String),  # String *message_buffer
+    ctypes.POINTER(MatrixMetadata),  # MatrixMetadata *metadata
+    ctypes.POINTER(MatrixMetadata),  # MatrixMetadata *augment_metadata
 )
 perform_gauss_jordan_reduction.restype = None

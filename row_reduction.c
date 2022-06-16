@@ -106,7 +106,6 @@ void hstack(double *matrix_one, double *matrix_two, double *result_matrix, struc
         result_matrix_metadata->num_rows = 0;
         return;
     }
-    // result_chunk->chunk_elevations = (int16_t *)malloc(sizeof(int16_t) * (num_rows_total * num_cols_total));
     result_matrix_metadata->num_rows = num_rows_total;
     result_matrix_metadata->num_cols = num_cols_total;
     print_matrix_metadata(result_matrix_metadata);
@@ -486,18 +485,23 @@ static inline void perform_square_matrix_inversion_gaussian_reduction(double *ma
     free(augmented_matrix);
 }
 
-EXPORT void python_perform_gauss_jordan_reduction(double *matrix_to_reduce, int num_rows, int num_cols, int num_augmented_cols, struct String *message_buffer, struct MatrixMetadata *metadata)
+EXPORT void python_perform_gauss_jordan_reduction(double *matrix_to_reduce, double *matrix_augment, struct String *message_buffer, struct MatrixMetadata *metadata, struct MatrixMetadata *matrix_augment_metadata)
 {
+
+    double *augmented_matrix = (double *)malloc(sizeof(double) * (metadata->num_rows * (metadata->num_cols + matrix_augment_metadata->num_cols)));
+    struct MatrixMetadata augmented_matrix_metadata;
+    augmented_matrix_metadata.num_rows = metadata->num_rows;
+    augmented_matrix_metadata.num_cols = metadata->num_cols + matrix_augment_metadata->num_cols;
+    hstack(matrix_to_reduce, matrix_augment, augmented_matrix, metadata, matrix_augment_metadata, &augmented_matrix_metadata);
     int size_main_diagonal;
     int swap_rows_flag = 0;
-    // Account for the extra column (the augmented matrix)
-    if ((num_cols - 1) <= num_rows)
+    if ((augmented_matrix_metadata.num_cols - matrix_augment_metadata->num_cols) <= augmented_matrix_metadata.num_rows)
     {
-        size_main_diagonal = (num_cols - 1);
+        size_main_diagonal = (augmented_matrix_metadata.num_cols - matrix_augment_metadata->num_cols);
     }
     else
     {
-        size_main_diagonal = num_rows;
+        size_main_diagonal = augmented_matrix_metadata.num_rows;
     }
 
     // Iterate down the main diagonal to begin conversion to echelon form
@@ -506,16 +510,16 @@ EXPORT void python_perform_gauss_jordan_reduction(double *matrix_to_reduce, int 
     int swap_multiplier = 1;
     for (int i = 0; i < size_main_diagonal; i++)
     {
-        double pivot_element = matrix_to_reduce[(i * num_cols) + i];
+        double pivot_element = augmented_matrix[(i * augmented_matrix_metadata.num_cols) + i];
         if (pivot_element == 0)
         {
             // See if there is a nonzero element in the same column (below it) and swap the rows.
             swap_rows_flag = 1;
         }
         double value_below_pivot_element;
-        for (int row = (i + 1); row < num_rows; row++)
+        for (int row = (i + 1); row < augmented_matrix_metadata.num_rows; row++)
         {
-            value_below_pivot_element = matrix_to_reduce[(row * num_cols) + i];
+            value_below_pivot_element = augmented_matrix[(row * augmented_matrix_metadata.num_cols) + i];
             if (value_below_pivot_element != 0)
             {
                 if (swap_rows_flag == 1)
@@ -528,9 +532,9 @@ EXPORT void python_perform_gauss_jordan_reduction(double *matrix_to_reduce, int 
                     writeStringNoNullTerminator(") <=> (R", message_buffer);
                     writeNumber((i + 1), message_buffer);
                     writeNulTerminatedString(")\n", message_buffer);
-                    swap_rows(matrix_to_reduce, row, i, num_cols);
+                    swap_rows(augmented_matrix, row, i, augmented_matrix_metadata.num_cols);
                     swap_rows_flag = 0;
-                    pivot_element = matrix_to_reduce[(i * num_cols) + i];
+                    pivot_element = augmented_matrix[(i * augmented_matrix_metadata.num_cols) + i];
                     writeStringNoNullTerminator("New Pivot Element: ", message_buffer);
                     writeDecimalNumber((int64_t)(pivot_element * 1e9), 9, message_buffer);
                     writeNulTerminatedString("\n", message_buffer);
@@ -552,7 +556,7 @@ EXPORT void python_perform_gauss_jordan_reduction(double *matrix_to_reduce, int 
                         writeStringNoNullTerminator("*(R", message_buffer);
                         writeNumber(i, message_buffer);
                         writeNulTerminatedString(")\n", message_buffer);
-                        add_scaled_row(matrix_to_reduce, row, i, num_cols, reciporical_fraction_scalar);
+                        add_scaled_row(augmented_matrix, row, i, augmented_matrix_metadata.num_cols, reciporical_fraction_scalar);
                     }
                     else
                     {
@@ -566,11 +570,11 @@ EXPORT void python_perform_gauss_jordan_reduction(double *matrix_to_reduce, int 
                         writeStringNoNullTerminator("*(R", message_buffer);
                         writeNumber(i, message_buffer);
                         writeNulTerminatedString(")\n", message_buffer);
-                        subtract_scaled_row(matrix_to_reduce, row, i, num_cols, reciporical_fraction_scalar);
+                        subtract_scaled_row(augmented_matrix, row, i, augmented_matrix_metadata.num_cols, reciporical_fraction_scalar);
                     }
                 }
             }
-            print_augmented_matrix_to_buffer(matrix_to_reduce, num_rows, num_cols, num_augmented_cols, message_buffer);
+            print_augmented_matrix_to_buffer(augmented_matrix, augmented_matrix_metadata.num_rows, augmented_matrix_metadata.num_cols, matrix_augment_metadata->num_cols, message_buffer);
         }
         product_of_diagonal_elements *= pivot_element;
     }
@@ -580,7 +584,7 @@ EXPORT void python_perform_gauss_jordan_reduction(double *matrix_to_reduce, int 
     for (int i = (size_main_diagonal - 1); i > -1; i--)
     {
         // Try to convert the pivot element to 1
-        double pivot_element = matrix_to_reduce[(i * num_cols) + i];
+        double pivot_element = augmented_matrix[(i * augmented_matrix_metadata.num_cols) + i];
         double pivot_reciporical;
         if (pivot_element == 0)
         {
@@ -597,15 +601,15 @@ EXPORT void python_perform_gauss_jordan_reduction(double *matrix_to_reduce, int 
                 writeStringNoNullTerminator(" * (R", message_buffer);
                 writeNumber((i + 1), message_buffer);
                 writeNulTerminatedString(")\n", message_buffer);
-                multiply_by_nonzero_scalar(matrix_to_reduce, i, num_cols, pivot_reciporical);
+                multiply_by_nonzero_scalar(augmented_matrix, i, augmented_matrix_metadata.num_cols, pivot_reciporical);
                 // denominator_value *= pivot_reciporical;
-                print_augmented_matrix_to_buffer(matrix_to_reduce, num_rows, num_cols, num_augmented_cols, message_buffer);
-                pivot_element = matrix_to_reduce[(i * num_cols) + i];
+                print_augmented_matrix_to_buffer(augmented_matrix, augmented_matrix_metadata.num_rows, augmented_matrix_metadata.num_cols, matrix_augment_metadata->num_cols, message_buffer);
+                pivot_element = augmented_matrix[(i * augmented_matrix_metadata.num_cols) + i];
             }
             double value_above_pivot_element;
             for (int row = (i - 1); row > -1; row--)
             {
-                value_above_pivot_element = matrix_to_reduce[(row * num_cols) + i];
+                value_above_pivot_element = augmented_matrix[(row * augmented_matrix_metadata.num_cols) + i];
                 if (value_above_pivot_element != 0)
                 {
                     double reciporical_fraction_scalar;
@@ -626,13 +630,13 @@ EXPORT void python_perform_gauss_jordan_reduction(double *matrix_to_reduce, int 
                     writeStringNoNullTerminator("*(R", message_buffer);
                     writeNumber((i + 1), message_buffer);
                     writeNulTerminatedString(")\n", message_buffer);
-                    subtract_scaled_row(matrix_to_reduce, row, i, num_cols, reciporical_fraction_scalar);
+                    subtract_scaled_row(augmented_matrix, row, i, augmented_matrix_metadata.num_cols, reciporical_fraction_scalar);
                 }
-                print_augmented_matrix_to_buffer(matrix_to_reduce, num_rows, num_cols, num_augmented_cols, message_buffer);
+                print_augmented_matrix_to_buffer(augmented_matrix, augmented_matrix_metadata.num_rows, augmented_matrix_metadata.num_cols, matrix_augment_metadata->num_cols, message_buffer);
             }
         }
     }
-    python_is_matrix_consistent(matrix_to_reduce, num_rows, num_cols, message_buffer, metadata);
+    python_is_matrix_consistent(augmented_matrix, augmented_matrix_metadata.num_rows, augmented_matrix_metadata.num_cols, message_buffer, metadata);
     if (metadata->is_consistent == 1)
     {
         writeStringNoNullTerminator("Product of Diagonal Elements is: ", message_buffer);
