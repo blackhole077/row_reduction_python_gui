@@ -26,7 +26,7 @@ struct MatrixMetadata
 static inline void print_matrix_metadata(struct MatrixMetadata *matrix_metadata_to_print)
 {
     printf(
-        "Num Rows: %03d\nNum Columns: %03d\nAugmented Matrix Rank: %03d\nMatrix Rank: %03d\nIs Consistent? %d\nMatrix Determinant: %03.6f\n",
+        "Num Rows: %3d\nNum Columns: %3d\nAugmented Matrix Rank: %d\nMatrix Rank: %d\nIs Consistent? %d\nMatrix Determinant: %03.6f\n",
         matrix_metadata_to_print->num_rows,
         matrix_metadata_to_print->num_cols,
         matrix_metadata_to_print->augmented_matrix_rank,
@@ -152,7 +152,7 @@ static inline int row_has_all_zeros(double *matrix_to_check, int row_to_check, i
     return 1;
 }
 
-static inline int column_has_all_zeros(double *matrix_to_check, int column_to_check, int num_rows, int num_cols, int not_augmented_matrix)
+static inline int column_has_all_zeros(double *matrix_to_check, int column_to_check, int num_rows, int num_cols)
 {
     for (int row = 0; row < num_rows; row++)
     {
@@ -178,7 +178,7 @@ static inline int calculate_matrix_rank(double *matrix_to_check, int num_rows, i
 {
     // This only calculates row rank
     // Heuristic: The rank is determined by whichever dimension is the limiting dimension
-    int base_rank = (num_rows <= (num_cols - num_augmented_columns)) ? num_rows : (num_cols - num_augmented_columns);
+    // int base_rank = (num_rows <= (num_cols - num_augmented_columns)) ? num_rows : (num_cols - num_augmented_columns);
     int actual_rank = 0;
     for (int row = 0; row < num_rows; row++)
     {
@@ -257,9 +257,55 @@ static inline void print_matrix(double *matrix_to_print, int num_rows, int num_c
     {
         for (int col = 0; col < num_cols; col++)
         {
-            printf("%f\t", matrix_to_print[(row * num_cols) + col]);
+            printf("% f\t", matrix_to_print[(row * num_cols) + col]);
         }
         printf("\n");
+    }
+}
+
+static inline void print_augmented_matrix(double *matrix_to_print, int num_rows, int num_cols, int num_augmented_cols)
+{
+    for (int row = 0; row < num_rows; row++)
+    {
+        for (int col = 0; col < num_cols; col++)
+        {
+            printf("% f\t", matrix_to_print[(row * num_cols) + col]);
+            if (col == ((num_cols - num_augmented_cols) - 1))
+            {
+                printf("|\t");
+            }
+        }
+        printf("\n");
+    }
+}
+
+static inline void print_matrix_to_buffer(double *matrix_to_print, int num_rows, int num_cols, struct String *message_buffer)
+{
+    for (int row = 0; row < num_rows; row++)
+    {
+        for (int col = 0; col < num_cols; col++)
+        {
+            writeDecimalNumber((int64_t)(matrix_to_print[(row * num_cols) + col] * 1e6), 6, message_buffer);
+            writeStringNoNullTerminator("\t", message_buffer);
+        }
+        writeNulTerminatedString("\n", message_buffer);
+    }
+}
+
+static inline void print_augmented_matrix_to_buffer(double *matrix_to_print, int num_rows, int num_cols, int num_augmented_cols, struct String *message_buffer)
+{
+    for (int row = 0; row < num_rows; row++)
+    {
+        for (int col = 0; col < num_cols; col++)
+        {
+            writeDecimalNumber((int64_t)(matrix_to_print[(row * num_cols) + col] * 1e6), 6, message_buffer);
+            writeStringNoNullTerminator("\t", message_buffer);
+            if (col == ((num_cols - num_augmented_cols) - 1))
+            {
+                writeStringNoNullTerminator("|\t", message_buffer);
+            }
+        }
+        writeNulTerminatedString("\n", message_buffer);
     }
 }
 
@@ -356,7 +402,7 @@ static inline void perform_gauss_jordan_reduction(double *matrix_to_reduce, int 
                     }
                 }
             }
-            print_matrix(matrix_to_reduce, num_rows, num_cols);
+            print_augmented_matrix(matrix_to_reduce, num_rows, num_cols, num_augmented_cols);
         }
         product_of_diagonal_elements *= pivot_element;
     }
@@ -433,50 +479,14 @@ static inline void perform_square_matrix_inversion_gaussian_reduction(double *ma
     printf("Horizontal Stack of matrix with identity matrix\n");
     // Create the augmented matrix of the input matrix and its identity and start the Gaussian reduction.
     hstack(matrix_to_invert, identity_matrix, augmented_matrix, &matrix_to_invert_metadata, &identity_matrix_metadata, &augmented_matrix_metadata);
-    print_matrix(augmented_matrix, augmented_matrix_metadata.num_rows, augmented_matrix_metadata.num_cols);
+    print_augmented_matrix(augmented_matrix, augmented_matrix_metadata.num_rows, augmented_matrix_metadata.num_cols, identity_matrix_metadata.num_cols);
     perform_gauss_jordan_reduction(augmented_matrix, augmented_matrix_metadata.num_rows, augmented_matrix_metadata.num_cols, identity_matrix_metadata.num_cols);
     // Free the matrices
     free(identity_matrix);
     free(augmented_matrix);
 }
 
-EXPORT void python_perform_square_matrix_inversion_gaussian_reduction(double *matrix_to_invert, int num_rows, int num_cols, struct MatrixMetadata matrix_to_invert_metadata, struct String *message_buffer)
-{
-    // This also covers if there is a row or column of zero values
-    if (matrix_to_invert_metadata.matrix_determinant == 0)
-    {
-        writeNulTerminatedString("The matrix provided has a determinant of 0, meaning it is not invertible.", message_buffer);
-        return;
-    }
-    else if ((matrix_to_invert_metadata.matrix_rank != matrix_to_invert_metadata.num_cols) || (matrix_to_invert_metadata.matrix_rank != matrix_to_invert_metadata.num_rows))
-    {
-        writeNulTerminatedString("The matrix provided does not have full rank and thus it cannot be invertible.", message_buffer);
-        return;
-    }
-    matrix_to_invert_metadata.num_rows = num_rows;
-    matrix_to_invert_metadata.num_cols = num_cols;
-    // print_matrix_metadata(&matrix_to_invert_metadata);
-    double *identity_matrix = generate_square_identity_matrix(num_rows, num_cols);
-    struct MatrixMetadata identity_matrix_metadata;
-    identity_matrix_metadata.num_rows = num_rows;
-    identity_matrix_metadata.num_cols = num_cols;
-    // printf("Identity Matrix Metadata\n\n\n");
-    // print_matrix_metadata(&identity_matrix_metadata);
-    double *augmented_matrix = (double *)malloc(sizeof(double) * (num_rows * (matrix_to_invert_metadata.num_cols + identity_matrix_metadata.num_cols)));
-    struct MatrixMetadata augmented_matrix_metadata;
-    augmented_matrix_metadata.num_rows = num_rows;
-    augmented_matrix_metadata.num_cols = matrix_to_invert_metadata.num_cols + identity_matrix_metadata.num_cols;
-    printf("Horizontal Stack of matrix with identity matrix\n");
-    // Create the augmented matrix of the input matrix and its identity and start the Gaussian reduction.
-    hstack(matrix_to_invert, identity_matrix, augmented_matrix, &matrix_to_invert_metadata, &identity_matrix_metadata, &augmented_matrix_metadata);
-    print_matrix(augmented_matrix, augmented_matrix_metadata.num_rows, augmented_matrix_metadata.num_cols);
-    perform_gauss_jordan_reduction(augmented_matrix, augmented_matrix_metadata.num_rows, augmented_matrix_metadata.num_cols, identity_matrix_metadata.num_cols);
-    // Free the matrices
-    free(identity_matrix);
-    free(augmented_matrix);
-}
-
-EXPORT void python_perform_gauss_jordan_reduction(double *matrix_to_reduce, int num_rows, int num_cols, struct String *message_buffer, struct MatrixMetadata *metadata)
+EXPORT void python_perform_gauss_jordan_reduction(double *matrix_to_reduce, int num_rows, int num_cols, int num_augmented_cols, struct String *message_buffer, struct MatrixMetadata *metadata)
 {
     int size_main_diagonal;
     int swap_rows_flag = 0;
@@ -560,7 +570,7 @@ EXPORT void python_perform_gauss_jordan_reduction(double *matrix_to_reduce, int 
                     }
                 }
             }
-            print_matrix(matrix_to_reduce, num_rows, num_cols);
+            print_augmented_matrix_to_buffer(matrix_to_reduce, num_rows, num_cols, num_augmented_cols, message_buffer);
         }
         product_of_diagonal_elements *= pivot_element;
     }
@@ -589,7 +599,7 @@ EXPORT void python_perform_gauss_jordan_reduction(double *matrix_to_reduce, int 
                 writeNulTerminatedString(")\n", message_buffer);
                 multiply_by_nonzero_scalar(matrix_to_reduce, i, num_cols, pivot_reciporical);
                 // denominator_value *= pivot_reciporical;
-                print_matrix(matrix_to_reduce, num_rows, num_cols);
+                print_augmented_matrix_to_buffer(matrix_to_reduce, num_rows, num_cols, num_augmented_cols, message_buffer);
                 pivot_element = matrix_to_reduce[(i * num_cols) + i];
             }
             double value_above_pivot_element;
@@ -618,7 +628,7 @@ EXPORT void python_perform_gauss_jordan_reduction(double *matrix_to_reduce, int 
                     writeNulTerminatedString(")\n", message_buffer);
                     subtract_scaled_row(matrix_to_reduce, row, i, num_cols, reciporical_fraction_scalar);
                 }
-                print_matrix(matrix_to_reduce, num_rows, num_cols);
+                print_augmented_matrix_to_buffer(matrix_to_reduce, num_rows, num_cols, num_augmented_cols, message_buffer);
             }
         }
     }
@@ -637,57 +647,91 @@ EXPORT void python_perform_gauss_jordan_reduction(double *matrix_to_reduce, int 
         writeNumber(swap_multiplier, message_buffer);
         writeNulTerminatedString("\n", message_buffer);
 
+        metadata->matrix_determinant = (product_of_diagonal_elements / denominator_value) * swap_multiplier;
+
         writeStringNoNullTerminator("Determinant of non-augmented matrix A is: ", message_buffer);
         writeDecimalNumber((int64_t)(metadata->matrix_determinant * 1e9), 9, message_buffer);
         writeNulTerminatedString("\n", message_buffer);
-
-        metadata->matrix_determinant = (product_of_diagonal_elements / denominator_value) * swap_multiplier;
     }
 }
 
-int main()
+EXPORT void python_perform_square_matrix_inversion_gaussian_reduction(double *matrix_to_invert, int num_rows, int num_cols, struct MatrixMetadata matrix_to_invert_metadata, struct String *message_buffer)
 {
-    double matrix_to_reduce[12] = {
-        2, 1, -1, 8,
-        -3, -1, 2, -11,
-        -2, 1, 2, -3};
-    perform_gauss_jordan_reduction(matrix_to_reduce, 3, 4, 1);
-    printf("\n\n\n");
-    printf("Performing First Matrix Inversion\n");
-    double matrix_to_invert[9] = {
-        2, 1, -1,
-        -3, -1, 2,
-        -2, 1, 2};
-    perform_square_matrix_inversion_gaussian_reduction(matrix_to_invert, 3, 3);
-    printf("\n\n\n");
-    // printf("Performing Second Matrix Reduction\n");
-    // double two_matrix_to_reduce[12] = {
-    //     0, 1, 5, -4,
-    //     1, 4, 3, -2,
-    //     2, 7, 1, -2};
-    // perform_gauss_jordan_reduction(two_matrix_to_reduce, 3, 4, 1);
-    // printf("\n\n\n");
-    // double two_matrix_to_invert[9] = {
-    //     0, 1, 5,
-    //     1, 4, 3,
-    //     2, 7, 1};
-    // printf("Performing Second Matrix Inversion\n");
-    // perform_square_matrix_inversion_gaussian_reduction(two_matrix_to_invert, 3, 3);
-    // printf("\n\n\n");
-    // double three_matrix_to_reduce[12] = {
-    //     2, 0, -6, -8,
-    //     0, 1, 2, 3,
-    //     3, 6, -2, -4};
-    // perform_gauss_jordan_reduction(three_matrix_to_reduce, 3, 4, 1);
-    // printf("\n\n\n");
-    // printf("Performing Third Matrix Inversion\n");
-    // double three_matrix_to_invert[9] = {
-    //     2, 0, -6,
-    //     0, 1, 2,
-    //     3, 6, -2};
-    // perform_square_matrix_inversion_gaussian_reduction(three_matrix_to_invert, 3, 3);
-    // printf("\n\n\n");
-
-    printf("Press Any Key to Continue\n");
-    getch();
+    // This also covers if there is a row or column of zero values
+    if (matrix_to_invert_metadata.matrix_determinant == 0)
+    {
+        writeNulTerminatedString("The matrix provided has a determinant of 0, meaning it is not invertible.", message_buffer);
+        return;
+    }
+    else if ((matrix_to_invert_metadata.matrix_rank != matrix_to_invert_metadata.num_cols) || (matrix_to_invert_metadata.matrix_rank != matrix_to_invert_metadata.num_rows))
+    {
+        writeNulTerminatedString("The matrix provided does not have full rank and thus it cannot be invertible.", message_buffer);
+        return;
+    }
+    matrix_to_invert_metadata.num_rows = num_rows;
+    matrix_to_invert_metadata.num_cols = num_cols;
+    // print_matrix_metadata(&matrix_to_invert_metadata);
+    double *identity_matrix = generate_square_identity_matrix(num_rows, num_cols);
+    struct MatrixMetadata identity_matrix_metadata;
+    identity_matrix_metadata.num_rows = num_rows;
+    identity_matrix_metadata.num_cols = num_cols;
+    // printf("Identity Matrix Metadata\n\n\n");
+    // print_matrix_metadata(&identity_matrix_metadata);
+    double *augmented_matrix = (double *)malloc(sizeof(double) * (num_rows * (matrix_to_invert_metadata.num_cols + identity_matrix_metadata.num_cols)));
+    struct MatrixMetadata augmented_matrix_metadata;
+    augmented_matrix_metadata.num_rows = num_rows;
+    augmented_matrix_metadata.num_cols = matrix_to_invert_metadata.num_cols + identity_matrix_metadata.num_cols;
+    // Create the augmented matrix of the input matrix and its identity and start the Gaussian reduction.
+    hstack(matrix_to_invert, identity_matrix, augmented_matrix, &matrix_to_invert_metadata, &identity_matrix_metadata, &augmented_matrix_metadata);
+    perform_gauss_jordan_reduction(augmented_matrix, augmented_matrix_metadata.num_rows, augmented_matrix_metadata.num_cols, identity_matrix_metadata.num_cols); //, message_buffer, augmented_matrix_metadata);
+    // Free the matrices
+    free(identity_matrix);
+    free(augmented_matrix);
 }
+
+// int main()
+// {
+//     double matrix_to_reduce[12] = {
+//         2, 1, -1, 8,
+//         -3, -1, 2, -11,
+//         -2, 1, 2, -3};
+//     perform_gauss_jordan_reduction(matrix_to_reduce, 3, 4, 1);
+//     printf("\n\n\n");
+//     printf("Performing First Matrix Inversion\n");
+//     double matrix_to_invert[9] = {
+//         2, 1, -1,
+//         -3, -1, 2,
+//         -2, 1, 2};
+//     perform_square_matrix_inversion_gaussian_reduction(matrix_to_invert, 3, 3);
+//     printf("\n\n\n");
+//     // printf("Performing Second Matrix Reduction\n");
+//     // double two_matrix_to_reduce[12] = {
+//     //     0, 1, 5, -4,
+//     //     1, 4, 3, -2,
+//     //     2, 7, 1, -2};
+//     // perform_gauss_jordan_reduction(two_matrix_to_reduce, 3, 4, 1);
+//     // printf("\n\n\n");
+//     // double two_matrix_to_invert[9] = {
+//     //     0, 1, 5,
+//     //     1, 4, 3,
+//     //     2, 7, 1};
+//     // printf("Performing Second Matrix Inversion\n");
+//     // perform_square_matrix_inversion_gaussian_reduction(two_matrix_to_invert, 3, 3);
+//     // printf("\n\n\n");
+//     // double three_matrix_to_reduce[12] = {
+//     //     2, 0, -6, -8,
+//     //     0, 1, 2, 3,
+//     //     3, 6, -2, -4};
+//     // perform_gauss_jordan_reduction(three_matrix_to_reduce, 3, 4, 1);
+//     // printf("\n\n\n");
+//     // printf("Performing Third Matrix Inversion\n");
+//     // double three_matrix_to_invert[9] = {
+//     //     2, 0, -6,
+//     //     0, 1, 2,
+//     //     3, 6, -2};
+//     // perform_square_matrix_inversion_gaussian_reduction(three_matrix_to_invert, 3, 3);
+//     // printf("\n\n\n");
+
+//     printf("Press Any Key to Continue\n");
+//     getch();
+// }

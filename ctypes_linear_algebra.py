@@ -2,6 +2,7 @@ import ctypes
 import os
 from sys import platform as sys_platform
 from typing import *
+
 DLL_FILE_NAME_STUB = "row_reduction"
 
 
@@ -33,11 +34,13 @@ class String(ctypes.Structure):
         ("buffer", ctypes.c_char_p),
     ]
 
-def make_string(length: int, capacity: int, buffer: Union[str,bytes]):
+
+def make_string(length: int, capacity: int, buffer: Union[str, bytes]):
     if isinstance(buffer, str):
         return ctypes.POINTER(String(length, capacity, 0, bytes(buffer, "utf-8")))
     else:
         return ctypes.POINTER(String(length, capacity, 0, buffer))
+
 
 def get_dict(struct: ctypes.Structure) -> dict:
     """
@@ -84,12 +87,13 @@ def string_read_line(buffer: bytes, start_index: int = 0):
             # If a newline is reached then a complete chunk of data is ready to process
             if byte == ord("\n"):
                 print(f"Record to return (hit newline): {byte_array_to_display}")
-                return byte_array_to_display, index+1
+                return byte_array_to_display, index + 1
         else:
             print(f"Record to return (none byte): {byte_array_to_display}")
             return byte_array_to_display, index
     # If somehow the buffer is either empty or reaching the end of it doesn't trigger the other return statements
     return bytearray("", "utf-8"), 0
+
 
 def find_library_file() -> ctypes.CDLL:
     """A small helper function to find and load the shared object file for elevation parsing.
@@ -135,6 +139,7 @@ perform_gauss_jordan_reduction.argtypes = (
     ctypes.POINTER(ctypes.c_double),  # matrix_to_reduce
     ctypes.c_int,  # num_rows
     ctypes.c_int,  # num_cols,
+    ctypes.c_int,  # num_augmented_cols
     ctypes.POINTER(String),  # message_buffer
     ctypes.POINTER(MatrixMetadata),  # metadata,
 )

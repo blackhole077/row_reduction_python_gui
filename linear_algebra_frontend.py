@@ -30,6 +30,7 @@ class NumberOnlyEntry(tk.Entry):
         except ValueError:
             self.set(self.old_value)
 
+
 # TODO: Add the ability to change the number of rows and columns
 class MatrixInput:
     def __init__(
@@ -53,6 +54,35 @@ class MatrixInput:
                 self.entries.append(matrix_value_entry)
         self.update()
 
+    def update_display(self):
+        for entry in self.entries:
+            entry.grid_forget()
+        self.entries.clear()
+        for row in range(self.num_rows):
+            for col in range(self.num_cols):
+                matrix_value_entry = NumberOnlyEntry(master=self._frame)
+                matrix_value_entry.grid(row=row, column=col)
+                self.entries.append(matrix_value_entry)
+        self.has_changed = True
+
+    def add_row(self):
+        self.num_rows += 1
+        self.update_display()
+
+    def remove_row(self):
+        if self.num_rows > 1:
+            self.num_rows -= 1
+            self.update_display()
+
+    def add_col(self):
+        self.num_cols += 1
+        self.update_display()
+
+    def remove_col(self):
+        if self.num_cols > 1:
+            self.num_cols -= 1
+            self.update_display()
+
     def update(self) -> None:
         matrix_values = np.array(
             [
@@ -62,7 +92,9 @@ class MatrixInput:
                 for entry in self.entries
             ]
         ).reshape(self.num_rows, self.num_cols)
-        self.matrix_data = matrix_values.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+        self.matrix_data = matrix_values.ctypes.data_as(
+            ctypes.POINTER(ctypes.c_double)
+        )
         self.parent.after(100, self.update)
 
 
@@ -100,7 +132,7 @@ class TextLogWidget:
         self.text_display = tkst.ScrolledText(
             self._frame, width=170, height=15
         )  # , font=self._config.application_font
-        self.text_display.pack(fill=tk.BOTH, expand=True)
+        self.text_display.pack(fill=tk.BOTH)
         # disable typing in the entry (might need to use menu to copy text...)
         self.buffer_index = 0
         self.text_display.bind("<Key>", lambda e: "break")
@@ -147,7 +179,6 @@ class TextLogWidget:
         None.
         """
 
-        print(ctypes_linear_algebra.get_dict(self.text_log))
         buffer: bytes = getattr(self.text_log, "buffer")
         # TODO: Add something that clears the buffer once there is no more stuff left to read.
         record, new_index = ctypes_linear_algebra.string_read_line(
@@ -159,15 +190,34 @@ class TextLogWidget:
         self.display(record)
         self.master.after(100, self.update)
 
+
 # TODO: Add another (read and copy only?) MatrixInput that just shows the completed row reduction (assuming one exists).
 ### CONSTRUCT THE GUI ###
 main_window = tk.Tk()
 main_window.wm_title("Linear Algebra Calculator GUI")
-matrix_input = MatrixInput(main_window, "Input Matrix (Augmented)", 3, 4)
-matrix_input._frame.grid(row=0, column=0)
+matrix_frame = ttk.Frame(master=main_window)
+matrix_input = MatrixInput(matrix_frame, "Input Matrix", 3, 3)
+matrix_augment = MatrixInput(matrix_frame, "Matrix Augmentation", 3, 1)
+matrix_input._frame.pack()
+matrix_augment._frame.pack()
+matrix_frame.grid(row=0, column=0)
 matrix_output = TextLogWidget(main_window)
 matrix_output._frame.grid(row=1, column=0)
+button_panel = ttk.Labelframe(main_window, text="Matrix Buttons")
+button_panel.grid(row=4, column=0)
 matrix_metadata = ctypes_linear_algebra.MatrixMetadata()
+add_row_button = ttk.Button(
+    button_panel, text="Add Row", command=lambda: matrix_input.add_row(),
+)
+remove_row_button = ttk.Button(
+    button_panel, text="Remove Row", command=lambda: matrix_input.remove_row(),
+)
+add_col_button = ttk.Button(
+    button_panel, text="Add Column", command=lambda: matrix_input.add_col(),
+)
+remove_col_button = ttk.Button(
+    button_panel, text="Remove Column", command=lambda: matrix_input.remove_col(),
+)
 perform_reduction_button = ttk.Button(
     main_window,
     text="Solve Matrix",
@@ -175,11 +225,16 @@ perform_reduction_button = ttk.Button(
         matrix_input.matrix_data,
         matrix_input.num_rows,
         matrix_input.num_cols,
+        1,
         ctypes.byref(matrix_output.text_log),
         ctypes.byref(matrix_metadata),
     ),
 )
 perform_reduction_button.grid(row=3, column=0)
+add_row_button.pack()
+remove_row_button.pack()
+add_col_button.pack()
+remove_col_button.pack()
 s = ttk.Style(main_window)
 s.theme_use("default")
 
