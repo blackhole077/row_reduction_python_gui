@@ -10,7 +10,6 @@ import ctypes_linear_algebra
 
 # matrix_data = np.zeros(shape=(num_rows.value, num_cols.value)).ctypes.data_as(ctypes.POINTER(ctypes.c_int16))
 
-# TODO: This class is actually rather annoying as a user to deal with. Constantly updating numbers and having unexpected behavior is not worth it.
 # TODO: Shift the validation step to be when the "solve matrix" button is pressed instead.
 class NumberOnlyEntry(tk.Entry):
     def __init__(self, master=None, **kwargs):
@@ -28,7 +27,7 @@ class NumberOnlyEntry(tk.Entry):
             new_value = float(self.get())
             self.old_value = new_value
         except ValueError:
-            self.set(self.old_value)
+            pass
 
 
 # TODO: Add the ability to change the number of rows and columns
@@ -37,8 +36,8 @@ class MatrixInput:
         self,
         parent: Union[tk.Frame, ttk.LabelFrame],
         label: str = "Matrix",
-        num_rows: int = 3,
-        num_cols: int = 3,
+        num_rows: int = 2,
+        num_cols: int = 2,
     ) -> None:
         self.parent = parent
         self.num_rows = num_rows
@@ -172,6 +171,7 @@ class TextLogWidget:
         if text:
             self.text_display.insert(tk.END, text)
             self.text_display.insert(tk.END, "\n")
+            self.text_display.see("end")
 
     def update(self) -> None:
         """
@@ -198,12 +198,11 @@ class TextLogWidget:
         self.master.after(100, self.update)
 
 
-# TODO: Add another (read and copy only?) MatrixInput that just shows the completed row reduction (assuming one exists).
 ### CONSTRUCT THE GUI ###
 main_window = tk.Tk()
 main_window.wm_title("Linear Algebra Calculator GUI")
 matrix_frame = ttk.Frame(master=main_window)
-matrix_input = MatrixInput(matrix_frame, "Input Matrix", 3, 3)
+matrix_input = MatrixInput(matrix_frame, "Input Matrix")
 matrix_augment = MatrixInput(matrix_frame, "Matrix Augmentation", 3, 1)
 matrix_input._frame.pack()
 matrix_augment._frame.pack()
@@ -211,7 +210,6 @@ matrix_frame.grid(row=0, column=0)
 matrix_output = TextLogWidget(main_window)
 matrix_output._frame.grid(row=1, column=0)
 button_panel = ttk.Labelframe(main_window, text="Matrix Buttons")
-button_panel.grid(row=4, column=0)
 add_row_button = ttk.Button(
     button_panel, text="Add Row", command=lambda: matrix_input.add_row(),
 )
@@ -236,12 +234,23 @@ perform_reduction_button = ttk.Button(
     ),
 )
 perform_reduction_button.grid(row=3, column=0)
+perform_inversion_button = ttk.Button(
+    main_window,
+    text="Invert Matrix",
+    command=lambda: ctypes_linear_algebra.perform_square_matrix_inversion(
+        matrix_input.matrix_data,
+        ctypes.byref(matrix_input.metadata),
+        ctypes.byref(matrix_output.text_log),
+    ),
+)
+perform_inversion_button.grid(row=4, column=0)
+button_panel.grid(row=5, column=0)
 add_row_button.pack()
 remove_row_button.pack()
 add_col_button.pack()
 remove_col_button.pack()
-s = ttk.Style(main_window)
-s.theme_use("default")
+gui_style = ttk.Style(main_window)
+gui_style.theme_use("default")
 
 ### MENU BAR ###
 menubar = tk.Menu(main_window)

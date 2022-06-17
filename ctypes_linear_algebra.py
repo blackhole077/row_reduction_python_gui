@@ -86,10 +86,10 @@ def string_read_line(buffer: bytes, start_index: int = 0):
                 byte_array_to_display.append(byte)
             # If a newline is reached then a complete chunk of data is ready to process
             if byte == ord("\n"):
-                print(f"Record to return (hit newline): {byte_array_to_display}")
+                # print(f"Record to return (hit newline): {byte_array_to_display}")
                 return byte_array_to_display, index + 1
         else:
-            print(f"Record to return (none byte): {byte_array_to_display}")
+            # print(f"Record to return (none byte): {byte_array_to_display}")
             return byte_array_to_display, index
     # If somehow the buffer is either empty or reaching the end of it doesn't trigger the other return statements
     return bytearray("", "utf-8"), 0
@@ -143,3 +143,14 @@ perform_gauss_jordan_reduction.argtypes = (
     ctypes.POINTER(MatrixMetadata),  # MatrixMetadata *augment_metadata
 )
 perform_gauss_jordan_reduction.restype = None
+
+perform_square_matrix_inversion = (
+    linear_algebra_dll.python_perform_square_matrix_inversion_gaussian_reduction
+)
+
+perform_square_matrix_inversion.argtypes = (
+    ctypes.POINTER(ctypes.c_double),  # *matrix_to_invert
+    ctypes.POINTER(MatrixMetadata),  # MatrixMetadata *matrix_to_invert_metadata
+    ctypes.POINTER(String),  # String *message_buffer
+)
+perform_square_matrix_inversion.restype = None
