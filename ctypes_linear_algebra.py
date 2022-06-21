@@ -1,3 +1,9 @@
+"""
+    Python code that serves as the middle-man between the GUI and the C code.
+    Handles the data marshalling and Python definition of functions to ensure
+    functions match their C counterpart.
+"""
+
 import ctypes
 import os
 from sys import platform as sys_platform
@@ -9,6 +15,8 @@ DLL_FILE_NAME_STUB = "row_reduction"
 class MatrixMetadata(ctypes.Structure):
     """
     A ctypes structure that holds metadata information about a given matrix (and its augmented form).
+
+    NOTE: You can access the attributes of the structure just the same as you would a normal Python object (e.g., MatrixMetadata.num_rows, etc.)
 
     Fields/Attributes
     -----------------
@@ -36,6 +44,9 @@ class String(ctypes.Structure):
 
 
 def make_string(length: int, capacity: int, buffer: Union[str, bytes]):
+    """
+        Convert a Python string object into a pointer to the custom String object defined in String.c
+    """
     if isinstance(buffer, str):
         return ctypes.POINTER(String(length, capacity, 0, bytes(buffer, "utf-8")))
     else:
@@ -78,7 +89,10 @@ def get_dict(struct: ctypes.Structure) -> dict:
     return result
 
 
-def string_read_line(buffer: bytes, start_index: int = 0):
+def string_read_line(buffer: bytes, start_index: int = 0) -> Tuple[bytearray, int]:
+    """
+        Read a line from a buffer.
+    """
     byte_array_to_display: bytearray = bytearray()
     for index, byte in enumerate(buffer[start_index:]):
         if byte is not None:

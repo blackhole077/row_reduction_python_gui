@@ -346,61 +346,68 @@ static inline void python_is_matrix_consistent(double *matrix_to_check, double *
     }
 }
 
-static inline void print_matrix(double *matrix_to_print, int num_rows, int num_cols)
+static inline void print_matrix(double *matrix_to_print, int num_rows, int num_cols, struct String *message_buffer)
 {
     for (int row = 0; row < num_rows; row++)
     {
         for (int col = 0; col < num_cols; col++)
         {
-            printf("% f\t", matrix_to_print[(row * num_cols) + col]);
-        }
-        printf("\n");
-    }
-}
-
-static inline void print_augmented_matrix(double *matrix_to_print, int num_rows, int num_cols, int num_augmented_cols)
-{
-    for (int row = 0; row < num_rows; row++)
-    {
-        for (int col = 0; col < num_cols; col++)
-        {
-            printf("% f\t", matrix_to_print[(row * num_cols) + col]);
-            if (col == ((num_cols - num_augmented_cols) - 1))
+            if (!message_buffer)
             {
-                printf("|\t");
+                printf("% f\t", matrix_to_print[(row * num_cols) + col]);
+            }
+            else
+            {
+                writeDecimalNumber((int64_t)(matrix_to_print[(row * num_cols) + col] * 1e6), 6, message_buffer);
+                writeStringNoNullTerminator("\t", message_buffer);
             }
         }
-        printf("\n");
-    }
-}
-
-static inline void print_matrix_to_buffer(double *matrix_to_print, int num_rows, int num_cols, struct String *message_buffer)
-{
-    for (int row = 0; row < num_rows; row++)
-    {
-        for (int col = 0; col < num_cols; col++)
+        if (!message_buffer)
         {
-            writeDecimalNumber((int64_t)(matrix_to_print[(row * num_cols) + col] * 1e6), 6, message_buffer);
-            writeStringNoNullTerminator("\t", message_buffer);
+            printf("\n");
         }
-        writeNulTerminatedString("\n", message_buffer);
+        else
+        {
+            writeNulTerminatedString("\n", message_buffer);
+        }
     }
 }
 
-static inline void print_augmented_matrix_to_buffer(double *matrix_to_print, int num_rows, int num_cols, int num_augmented_cols, struct String *message_buffer)
+static inline void print_augmented_matrix(double *matrix_to_print, int num_rows, int num_cols, int num_augmented_cols, struct String *message_buffer)
 {
     for (int row = 0; row < num_rows; row++)
     {
         for (int col = 0; col < num_cols; col++)
         {
-            writeDecimalNumber((int64_t)(matrix_to_print[(row * num_cols) + col] * 1e6), 6, message_buffer);
-            writeStringNoNullTerminator("\t", message_buffer);
+            if (!message_buffer)
+            {
+                printf("% f\t", matrix_to_print[(row * num_cols) + col]);
+            }
+            else
+            {
+                writeDecimalNumber((int64_t)(matrix_to_print[(row * num_cols) + col] * 1e6), 6, message_buffer);
+                writeStringNoNullTerminator("\t", message_buffer);
+            }
             if (col == ((num_cols - num_augmented_cols) - 1))
             {
-                writeStringNoNullTerminator("|\t", message_buffer);
+                if (!message_buffer)
+                {
+                    printf("|\t");
+                }
+                else
+                {
+                    writeStringNoNullTerminator("|\t", message_buffer);
+                }
             }
         }
-        writeNulTerminatedString("\n", message_buffer);
+        if (!message_buffer)
+        {
+            printf("\n");
+        }
+        else
+        {
+            writeNulTerminatedString("\n", message_buffer);
+        }
     }
 }
 
@@ -437,144 +444,6 @@ static inline void swap_rows(double *matrix_to_swap_rows, int row_to_swap_index_
     memcpy(&matrix_to_swap_rows[(row_to_swap_index_a * num_cols) + 0], &matrix_to_swap_rows[(row_to_swap_index_b * num_cols) + 0], num_bytes_per_row);
     memcpy(&matrix_to_swap_rows[(row_to_swap_index_b * num_cols) + 0], &row_holder, num_bytes_per_row);
 }
-
-// static inline void perform_gauss_jordan_reduction(double *matrix_to_reduce, int num_rows, int num_cols, int num_augmented_cols)
-// {
-//     int size_main_diagonal;
-//     int swap_rows_flag = 0;
-//     // Account for the extra column (the augmented matrix)
-//     if ((num_cols - num_augmented_cols) <= num_rows)
-//     {
-//         size_main_diagonal = (num_cols - num_augmented_cols);
-//     }
-//     else
-//     {
-//         size_main_diagonal = num_rows;
-//     }
-
-//     // Iterate down the main diagonal to begin conversion to echelon form
-//     double product_of_diagonal_elements = 1.0;
-//     double denominator_value = 1;
-//     int swap_multiplier = 1;
-//     for (int i = 0; i < size_main_diagonal; i++)
-//     {
-//         double pivot_element = matrix_to_reduce[(i * num_cols) + i];
-//         if (pivot_element == 0)
-//         {
-//             // See if there is a nonzero element in the same column (below it) and swap the rows.
-//             swap_rows_flag = 1;
-//         }
-//         double value_below_pivot_element;
-//         for (int row = (i + 1); row < num_rows; row++)
-//         {
-//             value_below_pivot_element = matrix_to_reduce[(row * num_cols) + i];
-//             if (value_below_pivot_element != 0)
-//             {
-//                 if (swap_rows_flag == 1)
-//                 {
-//                     // Swap the rows instead.
-//                     printf("[SWP] Row %d = (R%d) <=> (R%d)\n", (row + 1), (row + 1), (i + 1));
-//                     swap_rows(matrix_to_reduce, row, i, num_cols);
-//                     swap_rows_flag = 0;
-//                     pivot_element = matrix_to_reduce[(i * num_cols) + i];
-//                     printf("New Pivot Element: %.3f\n", pivot_element);
-//                     swap_multiplier *= -1;
-//                 }
-//                 else
-//                 {
-//                     double reciporical_fraction_scalar;
-//                     if (value_below_pivot_element < 0)
-//                     {
-//                         reciporical_fraction_scalar = (-1.0) * (value_below_pivot_element / pivot_element);
-//                         printf("[ADD] Row %d = (R%d) + %.3f*(R%d)\n", row, row, reciporical_fraction_scalar, i);
-//                         add_scaled_row(matrix_to_reduce, row, i, num_cols, reciporical_fraction_scalar);
-//                     }
-//                     else
-//                     {
-//                         reciporical_fraction_scalar = (value_below_pivot_element / pivot_element);
-//                         printf("[SUB] Row %d = (R%d) - %.3f*(R%d)\n", row, row, reciporical_fraction_scalar, i);
-//                         subtract_scaled_row(matrix_to_reduce, row, i, num_cols, reciporical_fraction_scalar);
-//                     }
-//                 }
-//             }
-//             print_augmented_matrix(matrix_to_reduce, num_rows, num_cols, num_augmented_cols);
-//         }
-//         product_of_diagonal_elements *= pivot_element;
-//     }
-
-//     // Next perform the second half
-//     printf("Shifting to Reduced Row Echelon Portion of Algorithm\n");
-//     for (int i = (size_main_diagonal - 1); i > -1; i--)
-//     {
-//         // Try to convert the pivot element to 1
-//         double pivot_element = matrix_to_reduce[(i * num_cols) + i];
-//         double pivot_reciporical;
-//         if (pivot_element == 0)
-//         {
-//         }
-//         else
-//         {
-//             if (pivot_element != 1)
-//             {
-//                 pivot_reciporical = (1.0 / pivot_element);
-//                 printf("[SCL] Row %d = %.3f*(R%d)\n", (i + 1), pivot_reciporical, (i + 1));
-//                 multiply_by_nonzero_scalar(matrix_to_reduce, i, num_cols, pivot_reciporical);
-//                 // denominator_value *= pivot_reciporical;
-//                 print_matrix(matrix_to_reduce, num_rows, num_cols);
-//                 pivot_element = matrix_to_reduce[(i * num_cols) + i];
-//             }
-//             double value_above_pivot_element;
-//             for (int row = (i - 1); row > -1; row--)
-//             {
-//                 value_above_pivot_element = matrix_to_reduce[(row * num_cols) + i];
-//                 if (value_above_pivot_element != 0)
-//                 {
-//                     double reciporical_fraction_scalar;
-//                     reciporical_fraction_scalar = (value_above_pivot_element / pivot_element);
-//                     printf("Reciporical Fraction Scalar: %.3f / %.3f = %.3f\n", value_above_pivot_element, pivot_element, reciporical_fraction_scalar);
-//                     printf("[SUB] Row %d = (R%d) - %.3f*(R%d)\n", (row + 1), (row + 1), reciporical_fraction_scalar, (i + 1));
-//                     subtract_scaled_row(matrix_to_reduce, row, i, num_cols, reciporical_fraction_scalar);
-//                     // printf("[ADD] Row %d = (R%d) + %.3f*(R%d)\n", (row + 1), (row + 1), reciporical_fraction_scalar, (i + 1));
-//                     // add_scaled_row(matrix_to_reduce, row, i, num_cols, reciporical_fraction_scalar);
-//                     // reciporical_fraction_scalar = (value_above_pivot_element / pivot_element);
-//                     // subtract_scaled_row(matrix_to_reduce, row, i, num_cols, reciporical_fraction_scalar);
-//                 }
-//                 print_matrix(matrix_to_reduce, num_rows, num_cols);
-//             }
-//         }
-//     }
-
-//     if (is_matrix_consistent(matrix_to_reduce, num_rows, num_cols, num_augmented_cols))
-//     {
-//         printf("Product of Diagonal Elements is %.6f\n", product_of_diagonal_elements);
-//         printf("Denominator value is %.6f\n", denominator_value);
-//         printf("Swap Multiplier is %d\n", swap_multiplier);
-//         double determinant = (product_of_diagonal_elements / denominator_value) * swap_multiplier;
-//         printf("Determinant of non-augmented matrix A is %.6f\n", determinant);
-//     }
-// }
-
-// static inline void perform_square_matrix_inversion_gaussian_reduction(double *matrix_to_invert, int num_rows, int num_cols)
-// {
-//     struct MatrixMetadata matrix_to_invert_metadata;
-//     matrix_to_invert_metadata.num_rows = num_rows;
-//     matrix_to_invert_metadata.num_cols = num_cols;
-//     double *identity_matrix = generate_square_identity_matrix(num_rows, num_cols);
-//     struct MatrixMetadata identity_matrix_metadata;
-//     identity_matrix_metadata.num_rows = num_rows;
-//     identity_matrix_metadata.num_cols = num_cols;
-//     double *augmented_matrix = (double *)malloc(sizeof(double) * (num_rows * (matrix_to_invert_metadata.num_cols + identity_matrix_metadata.num_cols)));
-//     struct MatrixMetadata augmented_matrix_metadata;
-//     augmented_matrix_metadata.num_rows = num_rows;
-//     augmented_matrix_metadata.num_cols = matrix_to_invert_metadata.num_cols + identity_matrix_metadata.num_cols;
-//     // Create the augmented matrix of the input matrix and its identity and start the Gaussian reduction.
-//     hstack(matrix_to_invert, identity_matrix, augmented_matrix, &matrix_to_invert_metadata, &identity_matrix_metadata, &augmented_matrix_metadata);
-//     print_augmented_matrix(augmented_matrix, augmented_matrix_metadata.num_rows, augmented_matrix_metadata.num_cols, identity_matrix_metadata.num_cols);
-//     perform_gauss_jordan_reduction(augmented_matrix, augmented_matrix_metadata.num_rows, augmented_matrix_metadata.num_cols, identity_matrix_metadata.num_cols);
-//     // Free the matrices
-//     free(identity_matrix);
-//     free(augmented_matrix);
-// }
 
 EXPORT void python_perform_gauss_jordan_reduction(double *matrix_to_reduce, double *matrix_augment, struct String *message_buffer, struct MatrixMetadata *metadata, struct MatrixMetadata *matrix_augment_metadata)
 {
@@ -617,19 +486,31 @@ EXPORT void python_perform_gauss_jordan_reduction(double *matrix_to_reduce, doub
                 if (swap_rows_flag == 1)
                 {
                     // Swap the rows instead.
-                    writeStringNoNullTerminator("[SWP] Row ", message_buffer);
-                    writeNumber((row + 1), message_buffer);
-                    writeStringNoNullTerminator(" = (R", message_buffer);
-                    writeNumber((row + 1), message_buffer);
-                    writeStringNoNullTerminator(") <=> (R", message_buffer);
-                    writeNumber((i + 1), message_buffer);
-                    writeNulTerminatedString(")\n", message_buffer);
+                    if (!message_buffer)
+                    {
+                        printf("[SWP] Row %d = (R%d) <=> (R%d)\n", (row + 1), (row + 1), (i + 1));
+                    }
+                    else
+                    {
+                        writeStringNoNullTerminator("[SWP] Row ", message_buffer);
+                        writeNumber((row + 1), message_buffer);
+                        writeStringNoNullTerminator(" = (R", message_buffer);
+                        writeNumber((row + 1), message_buffer);
+                        writeStringNoNullTerminator(") <=> (R", message_buffer);
+                        writeNumber((i + 1), message_buffer);
+                        writeNulTerminatedString(")\n", message_buffer);
+                    }
                     swap_rows(augmented_matrix, row, i, augmented_matrix_metadata.num_cols);
                     swap_rows_flag = 0;
                     pivot_element = augmented_matrix[(i * augmented_matrix_metadata.num_cols) + i];
-                    writeStringNoNullTerminator("New Pivot Element: ", message_buffer);
-                    writeDecimalNumber((int64_t)(pivot_element * 1e9), 9, message_buffer);
-                    writeNulTerminatedString("\n", message_buffer);
+                    if(!message_buffer){
+                        printf("New Pivot Element: % .6f\n", pivot_element);
+                    }
+                    else{
+                        writeStringNoNullTerminator("New Pivot Element: ", message_buffer);
+                        writeDecimalNumber((int64_t)(pivot_element * 1e9), 9, message_buffer);
+                        writeNulTerminatedString("\n", message_buffer);
+                    }
                     swap_multiplier *= -1;
                 }
                 else
@@ -638,15 +519,20 @@ EXPORT void python_perform_gauss_jordan_reduction(double *matrix_to_reduce, doub
                     if (value_below_pivot_element < 0)
                     {
                         reciporical_fraction_scalar = (-1.0) * (value_below_pivot_element / pivot_element);
-                        writeStringNoNullTerminator("[ADD] Row ", message_buffer);
-                        writeNumber(row, message_buffer);
-                        writeStringNoNullTerminator(" = (R", message_buffer);
-                        writeNumber(row, message_buffer);
-                        writeStringNoNullTerminator(") + ", message_buffer);
-                        writeDecimalNumber((int64_t)(reciporical_fraction_scalar * 1e9), 9, message_buffer);
-                        writeStringNoNullTerminator("*(R", message_buffer);
-                        writeNumber(i, message_buffer);
-                        writeNulTerminatedString(")\n", message_buffer);
+                        if(!message_buffer){
+                            printf("[ADD] Row %d = (R%d) + % .6f*(R%d)\n", row, row, reciporical_fraction_scalar, );
+                        }
+                        else{
+                            writeStringNoNullTerminator("[ADD] Row ", message_buffer);
+                            writeNumber(row, message_buffer);
+                            writeStringNoNullTerminator(" = (R", message_buffer);
+                            writeNumber(row, message_buffer);
+                            writeStringNoNullTerminator(") + ", message_buffer);
+                            writeDecimalNumber((int64_t)(reciporical_fraction_scalar * 1e9), 9, message_buffer);
+                            writeStringNoNullTerminator("*(R", message_buffer);
+                            writeNumber(i, message_buffer);
+                            writeNulTerminatedString(")\n", message_buffer);
+                        }
                         add_scaled_row(augmented_matrix, row, i, augmented_matrix_metadata.num_cols, reciporical_fraction_scalar);
                     }
                     else
@@ -665,7 +551,7 @@ EXPORT void python_perform_gauss_jordan_reduction(double *matrix_to_reduce, doub
                     }
                 }
             }
-            print_augmented_matrix_to_buffer(augmented_matrix, augmented_matrix_metadata.num_rows, augmented_matrix_metadata.num_cols, matrix_augment_metadata->num_cols, message_buffer);
+            print_augmented_matrix(augmented_matrix, augmented_matrix_metadata.num_rows, augmented_matrix_metadata.num_cols, matrix_augment_metadata->num_cols, message_buffer);
         }
         product_of_diagonal_elements *= pivot_element;
     }
@@ -693,7 +579,7 @@ EXPORT void python_perform_gauss_jordan_reduction(double *matrix_to_reduce, doub
                 writeNumber((i + 1), message_buffer);
                 writeNulTerminatedString(")\n", message_buffer);
                 multiply_by_nonzero_scalar(augmented_matrix, i, augmented_matrix_metadata.num_cols, pivot_reciporical);
-                print_augmented_matrix_to_buffer(augmented_matrix, augmented_matrix_metadata.num_rows, augmented_matrix_metadata.num_cols, matrix_augment_metadata->num_cols, message_buffer);
+                print_augmented_matrix(augmented_matrix, augmented_matrix_metadata.num_rows, augmented_matrix_metadata.num_cols, matrix_augment_metadata->num_cols, message_buffer);
                 pivot_element = augmented_matrix[(i * augmented_matrix_metadata.num_cols) + i];
             }
             for (int row = (i - 1); row > -1; row--)
@@ -721,7 +607,7 @@ EXPORT void python_perform_gauss_jordan_reduction(double *matrix_to_reduce, doub
                     writeNulTerminatedString(")\n", message_buffer);
                     subtract_scaled_row(augmented_matrix, row, i, augmented_matrix_metadata.num_cols, reciporical_fraction_scalar);
                 }
-                print_augmented_matrix_to_buffer(augmented_matrix, augmented_matrix_metadata.num_rows, augmented_matrix_metadata.num_cols, matrix_augment_metadata->num_cols, message_buffer);
+                print_augmented_matrix(augmented_matrix, augmented_matrix_metadata.num_rows, augmented_matrix_metadata.num_cols, matrix_augment_metadata->num_cols, message_buffer);
             }
         }
     }
