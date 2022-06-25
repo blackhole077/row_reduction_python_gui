@@ -8,24 +8,25 @@ import numpy as np
 
 import ctypes_linear_algebra
 
-# matrix_data = np.zeros(shape=(num_rows.value, num_cols.value)).ctypes.data_as(ctypes.POINTER(ctypes.c_int16))
-
 # TODO: Shift the validation step to be when the "solve matrix" button is pressed instead.
 class NumberOnlyEntry(tk.Entry):
-    def __init__(self, master=None, **kwargs):
+    def __init__(self, master=None, **kwargs) -> None:
         self.var = tk.StringVar()
         tk.Entry.__init__(self, master, textvariable=self.var, **kwargs)
         self.old_value = ""
         self.var.trace("w", self.check)
         self.get, self.set = self.var.get, self.var.set
 
-    def check(self, *args):
+    def check(self, *args) -> None:
         try:
             # We assume that negative numbers will have more to it
             if self.get() == "-":
                 return
-            new_value = float(self.get())
-            self.old_value = new_value
+            elif self.get() == "":
+                return
+            else:
+                new_value = float(self.get())
+                self.old_value = new_value
         except ValueError:
             pass
 
@@ -48,7 +49,6 @@ class MatrixInput:
         self.metadata: ctypes_linear_algebra.MatrixMetadata = ctypes_linear_algebra.MatrixMetadata(
             num_rows=self.num_rows,
             num_cols=self.num_cols,
-            augmented_matrix_rank=-1,
             matrix_rank=-1,
             is_consistent=-1,
             matrix_determinant=-1,
@@ -61,35 +61,119 @@ class MatrixInput:
                 self.entries.append(matrix_value_entry)
         self.update()
 
-    def update_display(self):
+    def update_display(self) -> None:
+        """
+            Update the GUI display of entries to match the dimensions of the matrix.
+
+            Given an MxN matrix, this function should update the GUI to ensure that
+            there are (M*N) NumberOnlyEntry components arranged in an MxN grid.
+
+            Parameters
+            ----------
+            None.
+
+            Returns
+            -------
+            None.
+        """
+
+        # First, remove all entries currently displayed and clear the list of entries, resetting it back to its original state.
         for entry in self.entries:
             entry.grid_forget()
         self.entries.clear()
+        # Fill in the values and grid them according to the new dimensions.
         for row in range(self.num_rows):
             for col in range(self.num_cols):
                 matrix_value_entry = NumberOnlyEntry(master=self._frame)
                 matrix_value_entry.grid(row=row, column=col)
                 self.entries.append(matrix_value_entry)
 
-    def add_row(self):
+    def add_row(self) -> None:
+        """
+            Add a row to the matrix.
+
+            NOTE: Automatically calls update_display()
+
+            Parameters
+            ----------
+            None.
+
+            Returns
+            -------
+            None.
+
+        """
         self.num_rows += 1
         self.update_display()
 
-    def remove_row(self):
+    def remove_row(self) -> None:
+        """
+            Remove a row from the matrix. Does nothing if there is only one row.
+
+            NOTE: Automatically calls update_display()
+
+            Parameters
+            ----------
+            None.
+
+            Returns
+            -------
+            None.
+
+        """
+
         if self.num_rows > 1:
             self.num_rows -= 1
             self.update_display()
 
-    def add_col(self):
+    def add_col(self) -> None:
+        """
+            Add a column to the matrix.
+
+            NOTE: Automatically calls update_display()
+
+            Parameters
+            ----------
+            None.
+
+            Returns
+            -------
+            None.
+
+        """
+
         self.num_cols += 1
         self.update_display()
 
-    def remove_col(self):
+    def remove_col(self) -> None:
+        """
+            Remove a column from the matrix. Does nothing if there is only one column.
+
+            NOTE: Automatically calls update_display()
+
+            Parameters
+            ----------
+            None.
+
+            Returns
+            -------
+            None.
+
+        """
+
         if self.num_cols > 1:
             self.num_cols -= 1
             self.update_display()
 
     def update(self) -> None:
+        """
+            The update function for the widget.
+
+            For MatrixInput, the update function will update its metadata such that its dimensions reflect
+            the current user-defined dimensions, the matrix values are updated to either NaN if no values were
+            provided for the corresponding NumberOnlyEntry or some float value.
+        """
+
         self.metadata.num_rows = self.num_rows
         self.metadata.num_cols = self.num_cols
         matrix_values = np.array(
@@ -100,7 +184,9 @@ class MatrixInput:
                 for entry in self.entries
             ]
         ).reshape(self.num_rows, self.num_cols)
+        # Cast the matrix_data as a ctypes double pointer (i.e., double* in C)
         self.matrix_data = matrix_values.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+        # Update every 100ms
         self.parent.after(100, self.update)
 
 
@@ -116,7 +202,7 @@ class TextLogWidget:
 
     def __init__(self, master: Union[tk.Frame, ttk.Frame, ttk.Panedwindow]) -> None:
         """
-        Initialize the DropTextLog widget.
+        Initialize the TextLog widget.
 
         Parameters
         ----------
@@ -129,15 +215,9 @@ class TextLogWidget:
         """
 
         self.master = master
-        # self._config = config
-        self._frame = ttk.LabelFrame(
-            master=self.master, text="Drop Analytics", relief="flat"
-        )
-        # self._frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        self._frame = ttk.LabelFrame(master=self.master, text="Text Log", relief="flat")
         self._frame.grid(row=0, column=0)
-        self.text_display = tkst.ScrolledText(
-            self._frame, width=170, height=15
-        )  # , font=self._config.application_font
+        self.text_display = tkst.ScrolledText(self._frame, width=170, height=15)
         self.text_display.pack(fill=tk.BOTH)
         # disable typing in the entry (might need to use menu to copy text...)
         self.buffer_index = 0
@@ -145,7 +225,6 @@ class TextLogWidget:
         self.text_log = ctypes_linear_algebra.String(0, 4096, 0, b"")
         self.update()
 
-    # BUG: This only displays the first instruction. Chances are we need to configure the start index more carefully.
     def display(self, text: Union[str, bytearray]) -> None:
         """
         Display the text.
