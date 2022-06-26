@@ -127,7 +127,7 @@ def get_dict(struct: ctypes.Structure) -> dict:
 
 def string_read_line(buffer: bytes, start_index: int = 0) -> Tuple[bytearray, int]:
     """
-        Read a line from a buffer.
+    Read a line from a buffer.
     """
     byte_array_to_display: bytearray = bytearray()
     for index, byte in enumerate(buffer[start_index:]):
