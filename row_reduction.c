@@ -627,6 +627,8 @@ EXPORT void python_perform_gauss_jordan_reduction(double *matrix_to_reduce, doub
     for (int i = 0; i < size_main_diagonal; i++)
     {
         double pivot_element = augmented_matrix[(i * augmented_matrix_metadata.num_cols) + i];
+        // BUG?: The possibility of a pivot element not having any rows to swap with it is not accounted for here
+        // BUG?: If we need to swap rows, then it might be an issue that I don't check rows above me.
         if (pivot_element == 0)
         {
             // See if there is a nonzero element in the same column (below it) and swap the rows.
@@ -731,10 +733,17 @@ EXPORT void python_perform_gauss_jordan_reduction(double *matrix_to_reduce, doub
     {
         writeNulTerminatedString("Shifting to Reduced Row Echelon Portion of Algorithm\n", message_buffer);
     }
-    for (int i = (size_main_diagonal - 1); i > -1; i--)
+    /**
+     * Start from the last element in the main diagonal (i.e., pivot element) and try to solve such that
+     * the pivot element is 1 and all elements above it are 0. Transformations that occur in this step don't
+     * affect the determinant so we do not keep track of them.
+     *
+     * NOTE: I don't refer to the variable diagonal_index as the pivot element since it is just an index to the pivot element.
+     */
+    for (int diagonal_index = (size_main_diagonal - 1); diagonal_index > -1; diagonal_index--)
     {
         // Try to convert the pivot element to 1
-        double pivot_element = augmented_matrix[(i * augmented_matrix_metadata.num_cols) + i];
+        double pivot_element = augmented_matrix[(diagonal_index * augmented_matrix_metadata.num_cols) + diagonal_index];
         double pivot_reciprocal;
         if (pivot_element == 0)
         {
@@ -746,25 +755,25 @@ EXPORT void python_perform_gauss_jordan_reduction(double *matrix_to_reduce, doub
                 pivot_reciprocal = (1.0 / pivot_element);
                 if (!message_buffer)
                 {
-                    printf("[SCL] Row %d = % .6f*(R%d)\n", (i + 1), pivot_reciprocal, (i + 1));
+                    printf("[SCL] Row %d = % .6f*(R%d)\n", (diagonal_index + 1), pivot_reciprocal, (diagonal_index + 1));
                 }
                 else
                 {
                     writeStringNoNullTerminator("[SCL] Row ", message_buffer);
-                    writeNumber((i + 1), message_buffer);
+                    writeNumber((diagonal_index + 1), message_buffer);
                     writeStringNoNullTerminator(" = ", message_buffer);
                     writeDecimalNumber((int64_t)(pivot_reciprocal * 1e9), 9, message_buffer);
                     writeStringNoNullTerminator(" * (R", message_buffer);
-                    writeNumber((i + 1), message_buffer);
+                    writeNumber((diagonal_index + 1), message_buffer);
                     writeNulTerminatedString(")\n", message_buffer);
                 }
-                multiply_row_by_scalar(augmented_matrix, i, augmented_matrix_metadata.num_cols, pivot_reciprocal);
+                multiply_row_by_scalar(augmented_matrix, diagonal_index, augmented_matrix_metadata.num_cols, pivot_reciprocal);
                 print_augmented_matrix(augmented_matrix, augmented_matrix_metadata.num_rows, augmented_matrix_metadata.num_cols, matrix_augment_metadata->num_cols, message_buffer);
-                pivot_element = augmented_matrix[(i * augmented_matrix_metadata.num_cols) + i];
+                pivot_element = augmented_matrix[(diagonal_index * augmented_matrix_metadata.num_cols) + diagonal_index];
             }
-            for (int row = (i - 1); row > -1; row--)
+            for (int row = (diagonal_index - 1); row > -1; row--)
             {
-                double value_above_pivot_element = augmented_matrix[(row * augmented_matrix_metadata.num_cols) + i];
+                double value_above_pivot_element = augmented_matrix[(row * augmented_matrix_metadata.num_cols) + diagonal_index];
                 if (value_above_pivot_element != 0)
                 {
                     double reciprocal_fraction_scalar;
@@ -772,7 +781,7 @@ EXPORT void python_perform_gauss_jordan_reduction(double *matrix_to_reduce, doub
                     if (!message_buffer)
                     {
                         printf("Reciprocal Fraction Scalar: % .6f\n", reciprocal_fraction_scalar);
-                        printf("[SUB] Row %d = (R%d) + % .6f*(R%d)\n", (row + 1), (row + 1), reciprocal_fraction_scalar, (i + 1));
+                        printf("[SUB] Row %d = (R%d) + % .6f*(R%d)\n", (row + 1), (row + 1), reciprocal_fraction_scalar, (diagonal_index + 1));
                     }
                     else
                     {
@@ -790,15 +799,20 @@ EXPORT void python_perform_gauss_jordan_reduction(double *matrix_to_reduce, doub
                         writeStringNoNullTerminator(") - ", message_buffer);
                         writeDecimalNumber((int64_t)(reciprocal_fraction_scalar * 1e9), 9, message_buffer);
                         writeStringNoNullTerminator("*(R", message_buffer);
-                        writeNumber((i + 1), message_buffer);
+                        writeNumber((diagonal_index + 1), message_buffer);
                         writeNulTerminatedString(")\n", message_buffer);
                     }
-                    subtract_scaled_row(augmented_matrix, row, i, augmented_matrix_metadata.num_cols, reciprocal_fraction_scalar);
+                    subtract_scaled_row(augmented_matrix, row, diagonal_index, augmented_matrix_metadata.num_cols, reciprocal_fraction_scalar);
                 }
                 print_augmented_matrix(augmented_matrix, augmented_matrix_metadata.num_rows, augmented_matrix_metadata.num_cols, matrix_augment_metadata->num_cols, message_buffer);
             }
         }
     }
+
+    /**
+     * Having finished performing the Gauss-Jordan algorithm, this section covers the metadata of the data structure.
+     * This includes finding out whether the matrix is consistent and the matrix determinant.
+     */
     is_matrix_consistent_rouche_capelli(matrix_to_reduce, augmented_matrix, metadata, &augmented_matrix_metadata, message_buffer);
     print_matrix_metadata(metadata);
     if (metadata->is_consistent == 1)

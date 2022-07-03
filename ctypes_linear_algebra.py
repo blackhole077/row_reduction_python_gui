@@ -8,7 +8,15 @@ import ctypes
 import os
 from sys import platform as sys_platform
 from typing import *
+from memory_profiler import profile
 
+###############################################################################
+#                                                                             #
+#                                                                             #
+#              CTYPES_LINEAR_ALGEBRA CLASSES AND CLASS FUNCTIONS              #
+#                                                                             #
+#                                                                             #
+###############################################################################
 
 class MatrixMetadata(ctypes.Structure):
     """
@@ -125,9 +133,35 @@ def get_dict(struct: ctypes.Structure) -> dict:
     return result
 
 
-def string_read_line(buffer: bytes, start_index: int = 0) -> Tuple[bytearray, int]:
+#@profile
+def string_read_line(
+    buffer: Union[bytearray, bytes], start_index: int = 0
+) -> Tuple[bytearray, int]:
     """
-    Read a line from a buffer.
+        Read a line from a buffer.
+
+        Read characters from a buffer of bytes, starting either from the start_index value provided
+        until either a newline is hit or None is hit. Once this happens, it returns the characters that
+        have been appended so far, along with the index of where the next call to the function should start.
+
+        NOTE: This function does not append return carriage ('\\r') tokens, effectively stripping them out.
+
+        Parameters
+        ----------
+        buffer: bytes
+            A buffer of characters to be read. The implicit assumption of the buffer is that the characters
+            fall within the UTF-8 encoding (ASCII probably works too).
+        start_index: int, default 0
+            The index to start from when enumerating. It is used to create a slice copy of the buffer.
+
+        Returns
+        -------
+        ret: Tuple[bytearray, int]
+            A tuple that contains the following pieces:
+            byte_array_to_display: bytearray
+                A mutable form of the characters that were read from the buffer.
+            index: int
+                The index of the last character present in byte_array_to_display.
     """
     byte_array_to_display: bytearray = bytearray()
     for index, byte in enumerate(buffer[start_index:]):
@@ -140,8 +174,12 @@ def string_read_line(buffer: bytes, start_index: int = 0) -> Tuple[bytearray, in
                 return byte_array_to_display, index + 1
         else:
             # print(f"Record to return (none byte): {byte_array_to_display}")
+            if isinstance(buffer, bytearray):
+                buffer.clear()
             return byte_array_to_display, index
     # If somehow the buffer is either empty or reaching the end of it doesn't trigger the other return statements
+    if start_index >= len(buffer) and isinstance(buffer, bytearray):
+        buffer.clear()
     return bytearray("", "utf-8"), 0
 
 
@@ -171,11 +209,10 @@ def find_library_file() -> ctypes.CDLL:
             f"{file_to_load} cannot be found in current directory {current_directory}. Please make sure this file is in the same location as {__name__}.py"
         )
 
-
 ###############################################################################
 #                                                                             #
 #                                                                             #
-#                  CTYPES_LINEAR_ALGEBRA CODE THAT RUNS ON STARTUP            #
+#               CTYPES_LINEAR_ALGEBRA CODE THAT RUNS ON STARTUP               #
 #                                                                             #
 #                                                                             #
 ###############################################################################
@@ -184,6 +221,7 @@ linear_algebra_dll = find_library_file()
 perform_gauss_jordan_reduction = (
     linear_algebra_dll.python_perform_gauss_jordan_reduction
 )
+# While I am not certain that the order of the arguments matters, I do it anyway to potentially avoid any bugs.
 perform_gauss_jordan_reduction.argtypes = (
     ctypes.POINTER(ctypes.c_double),  # matrix_to_reduce
     ctypes.POINTER(ctypes.c_double),  # matrix_augment
@@ -191,15 +229,17 @@ perform_gauss_jordan_reduction.argtypes = (
     ctypes.POINTER(MatrixMetadata),  # MatrixMetadata *metadata
     ctypes.POINTER(MatrixMetadata),  # MatrixMetadata *augment_metadata
 )
+# The restype is None because the function on the C side of the code is void
 perform_gauss_jordan_reduction.restype = None
 
 perform_square_matrix_inversion = (
     linear_algebra_dll.python_perform_square_matrix_inversion_gaussian_reduction
 )
-
+# While I am not certain that the order of the arguments matters, I do it anyway to potentially avoid any bugs.
 perform_square_matrix_inversion.argtypes = (
     ctypes.POINTER(ctypes.c_double),  # *matrix_to_invert
     ctypes.POINTER(MatrixMetadata),  # MatrixMetadata *matrix_to_invert_metadata
     ctypes.POINTER(String),  # String *message_buffer
 )
+# The restype is None because the function on the C side of the code is void
 perform_square_matrix_inversion.restype = None
