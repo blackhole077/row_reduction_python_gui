@@ -18,6 +18,7 @@ from memory_profiler import profile
 #                                                                             #
 ###############################################################################
 
+
 class MatrixMetadata(ctypes.Structure):
     """
         A ctypes structure that holds metadata information about a given matrix (and its augmented form).
@@ -133,7 +134,7 @@ def get_dict(struct: ctypes.Structure) -> dict:
     return result
 
 
-#@profile
+# @profile
 def string_read_line(
     buffer: Union[bytearray, bytes], start_index: int = 0
 ) -> Tuple[bytearray, int]:
@@ -208,6 +209,7 @@ def find_library_file() -> ctypes.CDLL:
         raise ValueError(
             f"{file_to_load} cannot be found in current directory {current_directory}. Please make sure this file is in the same location as {__name__}.py"
         )
+
 
 ###############################################################################
 #                                                                             #

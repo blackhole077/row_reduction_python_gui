@@ -72,6 +72,7 @@ class MatrixInput:
                 matrix_value_entry.grid(row=row, column=col)
                 self.entries.append(matrix_value_entry)
         self.update()
+
     # @profile
     def update_display(self) -> None:
         """
@@ -176,6 +177,7 @@ class MatrixInput:
         if self.num_cols > 1:
             self.num_cols -= 1
             self.update_display()
+
     # @profile
     def update(self) -> None:
         """
@@ -272,6 +274,7 @@ class TextLogWidget:
             self.text_display.insert(tk.END, text)
             self.text_display.insert(tk.END, "\n")
             self.text_display.see("end")
+
     # @profile
     def update(self) -> None:
         """
@@ -331,13 +334,42 @@ def perform_matrix_row_reduction(
         )
         return
 
+    matrix_values = np.array(
+        [
+            entry.old_value
+            if entry.old_value != "" and entry.old_value != "-"
+            else np.nan
+            for entry in matrix_input.entries
+        ]
+    ).reshape(matrix_input.num_rows, matrix_input.num_cols)
+    # Cast the matrix_data as a ctypes double pointer (i.e., double* in C)
+    matrix_values_ptr = matrix_values.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
+
+    matrix_augment_values = np.array(
+        [
+            entry.old_value
+            if entry.old_value != "" and entry.old_value != "-"
+            else np.nan
+            for entry in matrix_augment.entries
+        ]
+    ).reshape(matrix_augment.num_rows, matrix_augment.num_cols)
+    # Cast the matrix_data as a ctypes double pointer (i.e., double* in C)
+    matrix_augment_values_ptr = matrix_augment_values.ctypes.data_as(
+        ctypes.POINTER(ctypes.c_double)
+    )
+
     ctypes_linear_algebra.perform_gauss_jordan_reduction(
-        matrix_input.matrix_data,
-        matrix_augment.matrix_data,
+        matrix_values_ptr,
+        matrix_augment_values_ptr,
         ctypes.byref(text_display_widget.text_log),
         ctypes.byref(matrix_input.metadata),
         ctypes.byref(matrix_augment.metadata),
     )
+    # Perform cleanup
+    del matrix_values_ptr
+    del matrix_augment_values_ptr
+    del matrix_values
+    del matrix_augment_values
 
 
 # @profile
@@ -368,19 +400,23 @@ def perform_square_matrix_inversion(
     ctypes_linear_algebra.perform_square_matrix_inversion(
         matrix_values_ptr,
         ctypes.byref(matrix_input.metadata),
-        ctypes.byref(text_display_widget.text_log), # Replace this with None such that the CDLL will default to STDOUT
+        ctypes.byref(
+            text_display_widget.text_log
+        ),  # Replace this with None such that the CDLL will default to STDOUT
     )
     del matrix_values_ptr
     del matrix_values
 
+
 def trace_malloc_and_exit(*args):
     snapshot = tracemalloc.take_snapshot()
-    top_stats = snapshot.statistics('lineno')
+    top_stats = snapshot.statistics("lineno")
 
     print("[ Top 10 ]")
     for stat in top_stats[:10]:
         print(stat)
     exit()
+
 
 ### CONSTRUCT THE GUI ###
 tracemalloc.start()
